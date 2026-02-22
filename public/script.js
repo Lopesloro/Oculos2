@@ -84,35 +84,48 @@ function fmt(val) {
 // NAVEGAÇÃO
 // ============================================================
 
-// Navbar scroll effect
-const navbar = document.getElementById('navbar');
-if (navbar) {
-    window.addEventListener('scroll', () => {
-        navbar.classList.toggle('scrolled', window.scrollY > 20);
-    });
-}
+// ============================================================
+// NAVEGAÇÃO E BOTÕES (Corrigido)
+// ============================================================
 
-// Mobile menu
-const mobileToggle = document.getElementById('mobile-toggle');
-const mobileMenu = document.getElementById('mobile-menu');
-if (mobileToggle && mobileMenu) {
-    mobileToggle.addEventListener('click', () => {
-        mobileMenu.classList.toggle('open');
-    });
+// Esperar que a página carregue completamente
+document.addEventListener('DOMContentLoaded', () => {
     
-    mobileMenu.querySelectorAll('.mobile-link').forEach(link => {
-        link.addEventListener('click', () => mobileMenu.classList.remove('open'));
-    });
-}
+    // Navbar scroll effect
+    const navbar = document.getElementById('navbar');
+    if (navbar) {
+        window.addEventListener('scroll', () => {
+            navbar.classList.toggle('scrolled', window.scrollY > 20);
+        });
+    }
 
-// Botões comprar - redirecionam para pagamento
-document.querySelectorAll('.btn-comprar-trigger').forEach(btn => {
-    btn.addEventListener('click', e => {
-        e.preventDefault();
-        window.location.href = 'pagamento.html';
+    // Mobile menu
+    const mobileToggle = document.getElementById('mobile-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileToggle && mobileMenu) {
+        mobileToggle.addEventListener('click', () => {
+            mobileMenu.classList.toggle('open');
+        });
+        
+        mobileMenu.querySelectorAll('.mobile-link').forEach(link => {
+            link.addEventListener('click', () => mobileMenu.classList.remove('open'));
+        });
+    }
+
+    // Botões comprar - redirecionam para pagamento
+    // Seleciona botões com a classe e também qualquer botão que chame a atenção
+    const buyButtons = document.querySelectorAll('.btn-comprar-trigger, a[href="pagamento.html"]');
+    
+    buyButtons.forEach(btn => {
+        btn.addEventListener('click', e => {
+            // Evita o comportamento padrão só se não for um link direto válido
+            if (btn.tagName !== 'A') {
+                e.preventDefault();
+            }
+            window.location.href = '/pagamento.html';
+        });
     });
 });
-
 // ============================================================
 // CHECKOUT PAGE
 // ============================================================
@@ -286,30 +299,33 @@ if (purchaseForm) {
             const data = await res.json();
             
             if (data.success) {
-                showToast(`Pedido ${data.data.numero_pedido} confirmado! Verifique seu email.`, 'success');
+                showToast(`A redirecionar para o ambiente seguro de pagamento...`, 'success');
                 
-                // Limpar formulário
+                // Limpa o formulário
                 purchaseForm.reset();
                 qty = 1;
                 updatePrices();
                 
-                // Redirecionar após 3 segundos
-                setTimeout(() => { 
-                    window.location.href = 'index.html'; 
-                }, 3000);
-            } else {
-                // Mostrar erro específico
-                const errorMsg = data.message || 'Erro ao processar pedido.';
-                showToast(errorMsg, 'error');
-                
-                // Se houver erros de validação detalhados
-                if (data.errors && data.errors.length > 0) {
-                    console.error('Erros de validação:', data.errors);
+                // Redireciona o cliente para o link gerado pela InfinitePay
+                if (data.data && data.data.checkout_url) {
+                    setTimeout(() => { 
+                        window.location.href = data.data.checkout_url; 
+                    }, 1500);
+                } else {
+                    showToast('Erro: Link de pagamento não encontrado.', 'error');
                 }
-                
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
+            } else {
+                showToast(data.message || 'Erro ao processar pedido.', 'error');
             }
+                
+            // Se houver erros de validação detalhados
+            if (data.errors && data.errors.length > 0) {
+                console.error('Erros de validação:', data.errors);
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+
         } catch (error) {
             console.error('Erro na requisição:', error);
             showToast('Erro de conexão com o servidor. Tente novamente.', 'error');
