@@ -31,10 +31,10 @@ let db;
 
 try {
     db = new Database(DB_PATH, DB_OPTIONS);
-    db.pragma('journal_mode = WAL'); // Write-Ahead Logging para melhor performance
+    db.pragma('journal_mode = DELETE');; // Write-Ahead Logging para melhor performance
     db.pragma('foreign_keys = ON');  // Habilitar chaves estrangeiras
     db.pragma('synchronous = NORMAL'); // Balance entre segurança e performance
-    console.log('[DB] ✅ Conexão estabelecida com SQLite');
+    console.log('[DB] ✅ Conexão e\stabelecida com SQLite');
 } catch (error) {
     console.error('[DB] ❌ Erro ao conectar:', error.message);
     process.exit(1);
@@ -349,13 +349,27 @@ function generateUUID() {
  * Gera número de pedido único
  * Formato: BSP-YYYYMMDD-XXXX
  */
+/**
+ * Gera número de pedido único e SEQUENCIAL
+ * Formato: BSP-YYYYMMDD-0001
+ */
 function generateOrderNumber() {
     const date = new Date();
+    // Pega a data de hoje no formato YYYYMMDD
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.floor(1000 + Math.random() * 9000);
-    return `BSP-${dateStr}-${random}`;
+    
+    // Conta quantos pedidos já foram feitos HOJE no banco de dados
+    const result = db.prepare(`
+        SELECT COUNT(*) as total 
+        FROM pedidos 
+        WHERE numero_pedido LIKE ?
+    `).get(`BSP-${dateStr}-%`);
+    
+    // Pega o total de hoje, soma 1, e coloca zeros à esquerda (ex: 0001, 0002, 0015)
+    const sequencial = String(result.total + 1).padStart(4, '0');
+    
+    return `BSP-${dateStr}-${sequencial}`;
 }
-
 /**
  * Atualiza o timestamp de atualização
  */
