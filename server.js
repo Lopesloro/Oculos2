@@ -26,6 +26,18 @@ const { db, withTransaction, Repository } = require('./db');
 // ============================================================
 
 const app = express();
+app.use((req, res, next) => {
+    // Permite que o seu domínio no Render acesse a API
+    res.header("Access-Control-Allow-Origin", "https://blueshieldpro.onrender.com");
+    res.header("Access-Control-Allow-Methods", 'GET,PUT,POST,DELETE');
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    // Se for uma requisição de verificação (OPTIONS), responde ok e para por aqui
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
