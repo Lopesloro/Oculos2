@@ -359,3 +359,11 @@ function checkout() {
 // Exportar funções para uso global
 window.showToast = showToast;
 window.checkout = checkout;
+
+// Ativa todos os botões de comprar da página inicial
+document.querySelectorAll('.btn-comprar-trigger').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.preventDefault(); // Impede a tela de piscar/sumir
+        window.location.href = '/pagamento'; // Redireciona para a rota limpa do servidor
+    });
+});
