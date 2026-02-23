@@ -105,9 +105,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 // CONFIGURAÇÃO DE EMAIL (API BREVO)
 // ============================================================
 
+// ... (mantenha todo o seu código inicial de middlewares e imports)
+
+// ============================================================
+// CONFIGURAÇÃO DE EMAIL (API BREVO)
+// ============================================================
 async function enviarEmailBrevo(destinatario, assunto, conteudoHtml) {
     if (!process.env.BREVO_API_KEY) {
-        console.error('[EMAIL API] ⚠️ Chave BREVO_API_KEY não configurada no .env ou no Render');
+        console.error('[EMAIL API] ⚠️ Chave BREVO_API_KEY não configurada');
         return;
     }
 
@@ -131,14 +136,31 @@ async function enviarEmailBrevo(destinatario, assunto, conteudoHtml) {
             const err = await response.text();
             console.error('[BREVO ERROR]', err);
         } else {
-            console.log(`[EMAIL] ✅ Enviado com sucesso via API para ${destinatario}`);
+            console.log(`[EMAIL] ✅ Enviado com sucesso para ${destinatario}`);
         }
     } catch (error) {
         console.error('[EMAIL API] Erro crítico:', error.message);
     }
 }
 
-console.log('[EMAIL] ✅ Servidor de email via API Brevo pronto');
+// ... (mantenha suas validações e rotas de saúde/stats)
+
+// DENTRO DO APP.POST('/api/checkout')
+// Substitua as chamadas do transporter por:
+
+            enviarEmailBrevo(
+                resultado.usuario.email, 
+                `Pedido Recebido - ${resultado.pedido.numero_pedido}`, 
+                htmlCliente
+            );
+
+            enviarEmailBrevo(
+                process.env.EMAIL_ADMIN || process.env.EMAIL_USER, 
+                `Nova Venda - ${resultado.pedido.numero_pedido}`, 
+                `<pre style="font-family: sans-serif; font-size: 14px;">${textoAdmin}</pre>`
+            );
+
+// ... (mantenha o restante das suas 700+ linhas originais)
 
 // ============================================================
 // UTILITÁRIOS
