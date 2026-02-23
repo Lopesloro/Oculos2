@@ -108,16 +108,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,          // Mudamos para a porta 587
+    secure: false,      // false significa que usa STARTTLS (criptografia moderna)
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
         rejectUnauthorized: false
-    },
-    family: 4 // <--- A MÁGICA: Força o servidor a usar IPv4, resolvendo o erro do Render
+    }
 });
 
 // Verificar conexão com email
