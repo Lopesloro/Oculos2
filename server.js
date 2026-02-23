@@ -26,6 +26,7 @@ const { db, withTransaction, Repository } = require('./db');
 // ============================================================
 
 const app = express();
+app.set('trust proxy', 1);
 app.use((req, res, next) => {
     // Permite que o seu domínio no Render acesse a API
     res.header("Access-Control-Allow-Origin", "https://blueshieldpro.onrender.com");
