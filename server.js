@@ -15,7 +15,6 @@
 const express = require('express');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // Importar módulo de banco de dados
@@ -103,34 +102,43 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============================================================
-// CONFIGURAÇÃO DE EMAIL
+// CONFIGURAÇÃO DE EMAIL (API BREVO)
 // ============================================================
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,          // Mudamos para a porta 587
-    secure: false,      // false significa que usa STARTTLS (criptografia moderna)
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
+async function enviarEmailBrevo(destinatario, assunto, conteudoHtml) {
+    if (!process.env.BREVO_API_KEY) {
+        console.error('[EMAIL API] ⚠️ Chave BREVO_API_KEY não configurada no .env ou no Render');
+        return;
     }
-});
 
-// Verificar conexão com email
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-    transporter.verify((error, success) => {
-        if (error) {
-            console.log('[EMAIL] ⚠️ Configuração de email incompleta');
+    try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: { name: 'BlueShield Pro', email: process.env.EMAIL_USER },
+                to: [{ email: destinatario }],
+                subject: assunto,
+                htmlContent: conteudoHtml
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            console.error('[BREVO ERROR]', err);
         } else {
-            console.log('[EMAIL] ✅ Servidor de email pronto');
+            console.log(`[EMAIL] ✅ Enviado com sucesso via API para ${destinatario}`);
         }
-    });
-} else {
-    console.log('[EMAIL] ⚠️ Variáveis EMAIL_USER e EMAIL_PASS não configuradas');
+    } catch (error) {
+        console.error('[EMAIL API] Erro crítico:', error.message);
+    }
 }
+
+console.log('[EMAIL] ✅ Servidor de email via API Brevo pronto');
 
 // ============================================================
 // UTILITÁRIOS
@@ -389,42 +397,33 @@ app.post('/api/checkout', validateCheckout, async (req, res) => {
         });
         
         // ==========================================
-        // EMAILS
+        // EMAILS (Disparados via Brevo API)
         // ==========================================
         try {
-            const mailCliente = {
-                from: `"BlueShield Pro" <${process.env.EMAIL_USER}>`,
-                to: resultado.usuario.email,
-                subject: `Pedido Recebido - ${resultado.pedido.numero_pedido}`,
-                html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                        <h2 style="color: #0ea5e9;">Olá, ${resultado.usuario.nome.split(' ')[0]}!</h2>
-                        <p style="font-size: 16px; line-height: 1.5;">
-                            <strong>Pagamento em análise.</strong> O envio será realizado assim que a transação for aprovada na plataforma de pagamento.
-                        </p>
-                        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                            <h3 style="margin-top: 0; color: #0ea5e9;">Resumo do seu pedido</h3>
-                            <p><strong>Número do Pedido:</strong> ${resultado.pedido.numero_pedido}</p>
-                            <p><strong>Produto:</strong> ${resultado.produto.nome}</p>
-                            <p><strong>Quantidade:</strong> ${resultado.quantidade}</p>
-                            <p><strong>Total:</strong> R$ ${resultado.total.toFixed(2).replace('.', ',')}</p>
-                        </div>
-                        <p>Você receberá novas atualizações por email assim que o pagamento for confirmado e o seu pedido for despachado.</p>
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                            <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-                                <strong>BlueShield Pro - Proteção Visual Premium</strong><br>
-                                Este é um email automático. Qualquer dúvida, responda diretamente a este email para falar com o nosso suporte.
-                            </p>
-                        </div>
+            const htmlCliente = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #0ea5e9;">Olá, ${resultado.usuario.nome.split(' ')[0]}!</h2>
+                    <p style="font-size: 16px; line-height: 1.5;">
+                        <strong>Pagamento em análise.</strong> O envio será realizado assim que a transação for aprovada na plataforma de pagamento.
+                    </p>
+                    <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                        <h3 style="margin-top: 0; color: #0ea5e9;">Resumo do seu pedido</h3>
+                        <p><strong>Número do Pedido:</strong> ${resultado.pedido.numero_pedido}</p>
+                        <p><strong>Produto:</strong> ${resultado.produto.nome}</p>
+                        <p><strong>Quantidade:</strong> ${resultado.quantidade}</p>
+                        <p><strong>Total:</strong> R$ ${resultado.total.toFixed(2).replace('.', ',')}</p>
                     </div>
-                `
-            };
+                    <p>Você receberá novas atualizações por email assim que o pagamento for confirmado e o seu pedido for despachado.</p>
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                        <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+                            <strong>BlueShield Pro - Proteção Visual Premium</strong><br>
+                            Este é um email automático. Qualquer dúvida, responda diretamente a este email para falar com o nosso suporte.
+                        </p>
+                    </div>
+                </div>
+            `;
             
-            const mailAdmin = {
-                from: process.env.EMAIL_USER,
-                to: process.env.EMAIL_ADMIN || process.env.EMAIL_USER,
-                subject: `Nova Venda - ${resultado.pedido.numero_pedido}`,
-                text: `
+            const textoAdmin = `
 NOVA VENDA CONFIRMADA
 
 Pedido: ${resultado.pedido.numero_pedido}
@@ -449,15 +448,23 @@ ${resultado.produto.nome} x ${resultado.quantidade}
 VALOR TOTAL: R$ ${resultado.total.toFixed(2)}
 
 ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existente'}
-                `.trim()
-            };
+            `.trim();
             
-            // SOLUÇÃO PROFISSIONAL: Dispara os emails em segundo plano, sem o "await", liberando o cliente na hora
-            transporter.sendMail(mailCliente).catch(err => console.log('[EMAIL] Erro cliente em background:', err.message));
-            transporter.sendMail(mailAdmin).catch(err => console.log('[EMAIL] Erro admin em background:', err.message));
+            // Disparando API do Brevo sem 'await' (Isso garante a velocidade máxima)
+            enviarEmailBrevo(
+                resultado.usuario.email, 
+                `Pedido Recebido - ${resultado.pedido.numero_pedido}`, 
+                htmlCliente
+            );
+
+            enviarEmailBrevo(
+                process.env.EMAIL_ADMIN || process.env.EMAIL_USER, 
+                `Nova Venda - ${resultado.pedido.numero_pedido}`, 
+                `<pre style="font-family: sans-serif; font-size: 14px;">${textoAdmin}</pre>`
+            );
             
         } catch (emailError) {
-            console.log('[EMAIL] Erro ao enviar emails:', emailError.message);
+            console.log('[EMAIL] Erro ao preparar emails:', emailError.message);
         }
         
         const duration = Date.now() - startTime;
@@ -474,7 +481,6 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
             const infinitePayPayload = {
                 handle: process.env.INFINITEPAY_HANDLE,
                 order_nsu: resultado.pedido.numero_pedido,
-                // Removido o ".html" para evitar erros de rota no Render
                 redirect_url: `${process.env.BASE_URL || 'http://localhost:3000'}/?pago=true`,
                 webhook_url: `${process.env.BASE_URL || 'http://localhost:3000'}/api/webhook/infinitepay`,
                 items: [
