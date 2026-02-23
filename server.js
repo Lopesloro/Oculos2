@@ -450,10 +450,9 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
                 `.trim()
             };
             
-            await Promise.all([
-                transporter.sendMail(mailCliente).catch(err => console.log('[EMAIL] Erro cliente:', err.message)),
-                transporter.sendMail(mailAdmin).catch(err => console.log('[EMAIL] Erro admin:', err.message))
-            ]);
+            // SOLUÇÃO PROFISSIONAL: Dispara os emails em segundo plano, sem o "await", liberando o cliente na hora
+            //transporter.sendMail(mailCliente).catch(err => console.log('[EMAIL] Erro cliente em background:', err.message));
+            //transporter.sendMail(mailAdmin).catch(err => console.log('[EMAIL] Erro admin em background:', err.message));
             
         } catch (emailError) {
             console.log('[EMAIL] Erro ao enviar emails:', emailError.message);
@@ -473,7 +472,8 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
             const infinitePayPayload = {
                 handle: process.env.INFINITEPAY_HANDLE,
                 order_nsu: resultado.pedido.numero_pedido,
-                redirect_url: `${process.env.BASE_URL || 'http://localhost:3000'}/index.html?pago=true`,
+                // Removido o ".html" para evitar erros de rota no Render
+                redirect_url: `${process.env.BASE_URL || 'http://localhost:3000'}/?pago=true`,
                 webhook_url: `${process.env.BASE_URL || 'http://localhost:3000'}/api/webhook/infinitepay`,
                 items: [
                     {
