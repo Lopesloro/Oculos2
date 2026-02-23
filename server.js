@@ -107,14 +107,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ============================================================
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
         rejectUnauthorized: false
-    }
+    },
+    family: 4 // <--- A MÁGICA: Força o servidor a usar IPv4, resolvendo o erro do Render
 });
 
 // Verificar conexão com email
@@ -451,8 +454,8 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
             };
             
             // SOLUÇÃO PROFISSIONAL: Dispara os emails em segundo plano, sem o "await", liberando o cliente na hora
-            //transporter.sendMail(mailCliente).catch(err => console.log('[EMAIL] Erro cliente em background:', err.message));
-            //transporter.sendMail(mailAdmin).catch(err => console.log('[EMAIL] Erro admin em background:', err.message));
+            transporter.sendMail(mailCliente).catch(err => console.log('[EMAIL] Erro cliente em background:', err.message));
+            transporter.sendMail(mailAdmin).catch(err => console.log('[EMAIL] Erro admin em background:', err.message));
             
         } catch (emailError) {
             console.log('[EMAIL] Erro ao enviar emails:', emailError.message);
