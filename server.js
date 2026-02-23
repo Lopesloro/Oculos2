@@ -2,14 +2,6 @@
  * ============================================================
  * BLUE SHIELD PRO - API SERVER
  * ============================================================
- * Servidor Express profissional com:
- * - Estrutura MVC organizada
- * - Middlewares de segurança e validação
- * - Tratamento centralizado de erros
- * - Transações ACID
- * - Rate limiting
- * - Logging estruturado
- * ============================================================
  */
 
 const express = require('express');
@@ -27,12 +19,10 @@ const { db, withTransaction, Repository } = require('./db');
 const app = express();
 app.set('trust proxy', 1);
 app.use((req, res, next) => {
-    // Permite que o seu domínio no Render acesse a API
     res.header("Access-Control-Allow-Origin", "https://blueshieldpro.onrender.com");
     res.header("Access-Control-Allow-Methods", 'GET,PUT,POST,DELETE');
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    // Se for uma requisição de verificação (OPTIONS), responde ok e para por aqui
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -45,11 +35,9 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // MIDDLEWARES
 // ============================================================
 
-// Parse JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CORS configurado
 const cors = require('cors');
 const corsOptions = {
     origin: process.env.CORS_ORIGIN || '*',
@@ -59,7 +47,6 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Helmet para segurança (headers HTTP)
 const helmet = require('helmet');
 app.use(helmet({
     contentSecurityPolicy: {
@@ -73,46 +60,37 @@ app.use(helmet({
     }
 }));
 
-// Rate limiting simples (em memória)
 const rateLimit = require('express-rate-limit');
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // 100 requisições por IP
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     message: { success: false, message: 'Muitas requisições. Tente novamente mais tarde.' },
     standardHeaders: true,
     legacyHeaders: false
 });
 app.use('/api/', limiter);
 
-// Rate limiting específico para auth
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
     message: { success: false, message: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 
-// Logging de requisições
 app.use((req, res, next) => {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] ${req.method} ${req.path} - IP: ${req.ip}`);
     next();
 });
 
-// Servir arquivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============================================================
-// CONFIGURAÇÃO DE EMAIL (API BREVO)
+// CONFIGURAÇÃO DE EMAIL (Via API Brevo)
 // ============================================================
 
-// ... (mantenha todo o seu código inicial de middlewares e imports)
-
-// ============================================================
-// CONFIGURAÇÃO DE EMAIL (API BREVO)
-// ============================================================
 async function enviarEmailBrevo(destinatario, assunto, conteudoHtml) {
     if (!process.env.BREVO_API_KEY) {
-        console.error('[EMAIL API] ⚠️ Chave BREVO_API_KEY não configurada');
+        console.error('[EMAIL API] ⚠️ Chave BREVO_API_KEY não configurada no .env/Render');
         return;
     }
 
@@ -136,147 +114,61 @@ async function enviarEmailBrevo(destinatario, assunto, conteudoHtml) {
             const err = await response.text();
             console.error('[BREVO ERROR]', err);
         } else {
-            console.log(`[EMAIL] ✅ Enviado com sucesso para ${destinatario}`);
+            console.log(`[EMAIL] ✅ Enviado com sucesso via API para ${destinatario}`);
         }
     } catch (error) {
         console.error('[EMAIL API] Erro crítico:', error.message);
     }
 }
 
-// ... (mantenha suas validações e rotas de saúde/stats)
-
-// DENTRO DO APP.POST('/api/checkout')
-// Substitua as chamadas do transporter por:
-
-            enviarEmailBrevo(
-                resultado.usuario.email, 
-                `Pedido Recebido - ${resultado.pedido.numero_pedido}`, 
-                htmlCliente
-            );
-
-            enviarEmailBrevo(
-                process.env.EMAIL_ADMIN || process.env.EMAIL_USER, 
-                `Nova Venda - ${resultado.pedido.numero_pedido}`, 
-                `<pre style="font-family: sans-serif; font-size: 14px;">${textoAdmin}</pre>`
-            );
-
-// ... (mantenha o restante das suas 700+ linhas originais)
-
 // ============================================================
 // UTILITÁRIOS
 // ============================================================
 
-/**
- * Resposta padronizada da API
- */
 class ApiResponse {
     static success(res, data, message = 'Operação realizada com sucesso', statusCode = 200) {
-        return res.status(statusCode).json({
-            success: true,
-            message,
-            data,
-            timestamp: new Date().toISOString()
-        });
+        return res.status(statusCode).json({ success: true, message, data, timestamp: new Date().toISOString() });
     }
-    
     static error(res, message, statusCode = 400, errors = null) {
-        const response = {
-            success: false,
-            message,
-            timestamp: new Date().toISOString()
-        };
+        const response = { success: false, message, timestamp: new Date().toISOString() };
         if (errors) response.errors = errors;
         return res.status(statusCode).json(response);
     }
 }
 
-/**
- * Validações
- */
 const Validators = {
-    email(email) {
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return regex.test(email);
-    },
-    
-    cpf(cpf) {
-        // Desativado para testes. Retorna sempre verdadeiro.
-        return true; 
-    },
-    
-    cep(cep) {
-        return /^\d{5}-?\d{3}$/.test(cep);
-    },
-    
-    telefone(tel) {
-        return /^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$/.test(tel);
-    },
+    email(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); },
+    cpf(cpf) { return true; }, 
+    cep(cep) { return /^\d{5}-?\d{3}$/.test(cep); },
+    telefone(tel) { return /^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$/.test(tel); },
 };
 
-/**
- * Middleware de validação
- */
 function validateCheckout(req, res, next) {
     const errors = [];
     const { nome, email, cpf, telefone, cep, endereco, numero, cidade, estado } = req.body;
     
-    if (!nome || nome.trim().length < 3) {
-        errors.push({ field: 'nome', message: 'Nome deve ter pelo menos 3 caracteres' });
-    }
+    if (!nome || nome.trim().length < 3) errors.push({ field: 'nome', message: 'Nome deve ter pelo menos 3 caracteres' });
+    if (!email || !Validators.email(email)) errors.push({ field: 'email', message: 'Email inválido' });
+    if (!cpf || !Validators.cpf(cpf)) errors.push({ field: 'cpf', message: 'CPF inválido' });
+    if (!telefone || !Validators.telefone(telefone)) errors.push({ field: 'telefone', message: 'Telefone inválido' });
+    if (!cep || !Validators.cep(cep)) errors.push({ field: 'cep', message: 'CEP inválido' });
+    if (!endereco || endereco.trim().length < 3) errors.push({ field: 'endereco', message: 'Endereço é obrigatório' });
+    if (!numero || numero.trim().length === 0) errors.push({ field: 'numero', message: 'Número é obrigatório' });
+    if (!cidade || cidade.trim().length < 2) errors.push({ field: 'cidade', message: 'Cidade é obrigatória' });
+    if (!estado || estado.trim().length !== 2) errors.push({ field: 'estado', message: 'Estado é obrigatório (2 caracteres)' });
     
-    if (!email || !Validators.email(email)) {
-        errors.push({ field: 'email', message: 'Email inválido' });
-    }
-    
-    if (!cpf || !Validators.cpf(cpf)) {
-        errors.push({ field: 'cpf', message: 'CPF inválido' });
-    }
-    
-    if (!telefone || !Validators.telefone(telefone)) {
-        errors.push({ field: 'telefone', message: 'Telefone inválido' });
-    }
-    
-    if (!cep || !Validators.cep(cep)) {
-        errors.push({ field: 'cep', message: 'CEP inválido' });
-    }
-    
-    if (!endereco || endereco.trim().length < 3) {
-        errors.push({ field: 'endereco', message: 'Endereço é obrigatório' });
-    }
-    
-    if (!numero || numero.trim().length === 0) {
-        errors.push({ field: 'numero', message: 'Número é obrigatório' });
-    }
-    
-    if (!cidade || cidade.trim().length < 2) {
-        errors.push({ field: 'cidade', message: 'Cidade é obrigatória' });
-    }
-    
-    if (!estado || estado.trim().length !== 2) {
-        errors.push({ field: 'estado', message: 'Estado é obrigatório (2 caracteres)' });
-    }
-    
-    if (errors.length > 0) {
-        return ApiResponse.error(res, 'Dados inválidos', 400, errors);
-    }
-    
+    if (errors.length > 0) return ApiResponse.error(res, 'Dados inválidos', 400, errors);
     next();
 }
 
 // ============================================================
 // ROTAS DA API
 // ============================================================
-// Health check
+
 app.get('/api/health', (req, res) => {
-    ApiResponse.success(res, {
-        status: 'online',
-        environment: NODE_ENV,
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    });
+    ApiResponse.success(res, { status: 'online', environment: NODE_ENV, timestamp: new Date().toISOString(), version: '1.0.0' });
 });
 
-// Estatísticas do dashboard (protegido em produção)
 app.get('/api/stats', (req, res) => {
     try {
         const repo = new Repository(db);
@@ -292,142 +184,87 @@ app.get('/api/stats', (req, res) => {
 
 app.post('/api/checkout', validateCheckout, async (req, res) => {
     const startTime = Date.now();
-    const clientInfo = {
-        ip: req.ip,
-        userAgent: req.headers['user-agent']
-    };
+    const clientInfo = { ip: req.ip, userAgent: req.headers['user-agent'] };
     
     try {
-        const {
-            nome, email, cpf, telefone,
-            cep, endereco, numero, complemento, bairro, cidade, estado,
-            quantidade = 1
-        } = req.body;
+        const { nome, email, cpf, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, quantidade = 1 } = req.body;
         
-        // Limpar CPF e CEP
         const cpfLimpo = cpf.replace(/\D/g, '');
         const cepLimpo = cep.replace(/\D/g, '');
         
-        // Executar em transação
         const resultado = withTransaction((repo) => {
-            // 1. Verificar se usuário já existe
             let usuario = repo.getUserByEmail(email);
             let usuarioExistente = false;
             
             if (usuario) {
-                if (usuario.cpf !== cpfLimpo) {
-                    throw new Error('Email já cadastrado com outro CPF');
-                }
+                if (usuario.cpf !== cpfLimpo) throw new Error('Email já cadastrado com outro CPF');
                 usuarioExistente = true;
             } else {
                 usuario = repo.getUserByCPF(cpfLimpo);
-                if (usuario) {
-                    throw new Error('CPF já cadastrado com outro email');
-                }
+                if (usuario) throw new Error('CPF já cadastrado com outro email');
             }
             
-            // 2. Criar ou atualizar usuário
             if (!usuarioExistente) {
                 const senhaTemp = Math.random().toString(36).slice(-10);
                 const senhaHash = bcrypt.hashSync(senhaTemp, 10);
                 
-                const novoUsuario = repo.createUser({
-                    nome: nome.trim(),
-                    email: email.toLowerCase().trim(),
-                    cpf: cpfLimpo,
-                    senha_hash: senhaHash,
-                    telefone
-                });
-                
+                const novoUsuario = repo.createUser({ nome: nome.trim(), email: email.toLowerCase().trim(), cpf: cpfLimpo, senha_hash: senhaHash, telefone });
                 usuario = repo.getUserById(novoUsuario.id);
                 
                 repo.logAudit({
-                    tabela: 'usuarios',
-                    registro_id: usuario.id,
-                    acao: 'INSERT',
+                    tabela: 'usuarios', registro_id: usuario.id, acao: 'INSERT',
                     dados_novos: { nome, email, cpf: cpfLimpo },
-                    ip_address: clientInfo.ip,
-                    user_agent: clientInfo.userAgent,
-                    endpoint: '/api/checkout',
-                    metodo_http: 'POST'
+                    ip_address: clientInfo.ip, user_agent: clientInfo.userAgent,
+                    endpoint: '/api/checkout', metodo_http: 'POST'
                 });
             }
             
-            // 3. Criar endereço
             const enderecoResult = repo.createAddress({
-                usuario_id: usuario.id,
-                cep: cepLimpo,
-                logradouro: endereco.trim(),
-                numero: numero.trim(),
-                complemento: complemento?.trim(),
-                bairro: bairro?.trim() || 'Não informado',
-                cidade: cidade.trim(),
-                estado: estado.toUpperCase(),
-                tipo: 'entrega',
-                padrao: 1
+                usuario_id: usuario.id, cep: cepLimpo, logradouro: endereco.trim(), numero: numero.trim(),
+                complemento: complemento?.trim(), bairro: bairro?.trim() || 'Não informado',
+                cidade: cidade.trim(), estado: estado.toUpperCase(), tipo: 'entrega', padrao: 1
             });
             
-            // 4. Buscar produto
             const produto = repo.getProductBySku('BLUESHIELD-PRO-001');
             if (!produto) throw new Error('Produto não encontrado');
             if (produto.estoque < quantidade) throw new Error('Estoque insuficiente');
             
-            // 5. Calcular valores
             const precoUnitario = produto.preco_unitario;
             const subtotal = precoUnitario * quantidade;
             const frete = 0;
             const desconto = 0;
             const total = subtotal + frete - desconto;
             
-            // 6. Criar pedido
             const pedido = repo.createOrder({
-                usuario_id: usuario.id,
-                endereco_id: enderecoResult.id,
-                subtotal, frete, desconto, total,
-                metodo_pagamento: 'pix',
-                observacoes_cliente: null
+                usuario_id: usuario.id, endereco_id: enderecoResult.id,
+                subtotal, frete, desconto, total, metodo_pagamento: 'pix', observacoes_cliente: null
             });
             
-            // 7. Adicionar item
             repo.addOrderItem({
-                pedido_id: pedido.id,
-                produto_id: produto.id,
-                sku: produto.sku,
-                nome: produto.nome,
-                quantidade,
-                preco_unitario: precoUnitario,
-                variacao: null
+                pedido_id: pedido.id, produto_id: produto.id, sku: produto.sku,
+                nome: produto.nome, quantidade, preco_unitario: precoUnitario, variacao: null
             });
             
-            // 8. Atualizar estoque
             repo.updateStock(produto.id, quantidade);
             
-            // 9. Log
             repo.logAudit({
-                tabela: 'pedidos',
-                registro_id: pedido.id,
-                acao: 'INSERT',
+                tabela: 'pedidos', registro_id: pedido.id, acao: 'INSERT',
                 dados_novos: { numero_pedido: pedido.numero_pedido, total, quantidade },
-                usuario_id: usuario.id,
-                ip_address: clientInfo.ip,
-                user_agent: clientInfo.userAgent,
-                endpoint: '/api/checkout',
-                metodo_http: 'POST'
+                usuario_id: usuario.id, ip_address: clientInfo.ip,
+                user_agent: clientInfo.userAgent, endpoint: '/api/checkout', metodo_http: 'POST'
             });
             
             return { usuario, pedido, produto, quantidade, total, usuarioNovo: !usuarioExistente };
         });
         
         // ==========================================
-        // EMAILS (Disparados via Brevo API)
+        // EMAILS (Brevo)
         // ==========================================
         try {
             const htmlCliente = `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2 style="color: #0ea5e9;">Olá, ${resultado.usuario.nome.split(' ')[0]}!</h2>
-                    <p style="font-size: 16px; line-height: 1.5;">
-                        <strong>Pagamento em análise.</strong> O envio será realizado assim que a transação for aprovada na plataforma de pagamento.
-                    </p>
+                    <p style="font-size: 16px; line-height: 1.5;"><strong>Pagamento em análise.</strong> O envio será realizado assim que a transação for aprovada na plataforma de pagamento.</p>
                     <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
                         <h3 style="margin-top: 0; color: #0ea5e9;">Resumo do seu pedido</h3>
                         <p><strong>Número do Pedido:</strong> ${resultado.pedido.numero_pedido}</p>
@@ -436,12 +273,6 @@ app.post('/api/checkout', validateCheckout, async (req, res) => {
                         <p><strong>Total:</strong> R$ ${resultado.total.toFixed(2).replace('.', ',')}</p>
                     </div>
                     <p>Você receberá novas atualizações por email assim que o pagamento for confirmado e o seu pedido for despachado.</p>
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                        <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-                            <strong>BlueShield Pro - Proteção Visual Premium</strong><br>
-                            Este é um email automático. Qualquer dúvida, responda diretamente a este email para falar com o nosso suporte.
-                        </p>
-                    </div>
                 </div>
             `;
             
@@ -472,18 +303,8 @@ VALOR TOTAL: R$ ${resultado.total.toFixed(2)}
 ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existente'}
             `.trim();
             
-            // Disparando API do Brevo sem 'await' (Isso garante a velocidade máxima)
-            enviarEmailBrevo(
-                resultado.usuario.email, 
-                `Pedido Recebido - ${resultado.pedido.numero_pedido}`, 
-                htmlCliente
-            );
-
-            enviarEmailBrevo(
-                process.env.EMAIL_ADMIN || process.env.EMAIL_USER, 
-                `Nova Venda - ${resultado.pedido.numero_pedido}`, 
-                `<pre style="font-family: sans-serif; font-size: 14px;">${textoAdmin}</pre>`
-            );
+            enviarEmailBrevo(resultado.usuario.email, `Pedido Recebido - ${resultado.pedido.numero_pedido}`, htmlCliente);
+            enviarEmailBrevo(process.env.EMAIL_ADMIN || process.env.EMAIL_USER, `Nova Venda - ${resultado.pedido.numero_pedido}`, `<pre style="font-family: sans-serif; font-size: 14px;">${textoAdmin}</pre>`);
             
         } catch (emailError) {
             console.log('[EMAIL] Erro ao preparar emails:', emailError.message);
@@ -519,8 +340,6 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
                 }
             };
 
-            console.log('[INFINITEPAY] A enviar requisição...', infinitePayPayload);
-
             const responseIP = await fetch('https://api.infinitepay.io/invoices/public/checkout/links', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -528,11 +347,6 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
             });
             
             const ipData = await responseIP.json();
-            
-            console.log('\n=== RESPOSTA DA INFINITEPAY ===');
-            console.log(ipData);
-            console.log('===============================\n');
-            
             checkoutUrl = ipData.url || ipData.link || (ipData.data && ipData.data.url) || (ipData.data && ipData.data.link); 
             
             if (!checkoutUrl) {
@@ -544,9 +358,6 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
             return ApiResponse.error(res, 'Erro na comunicação com a InfinitePay.', 500);
         }
 
-        // ==========================================
-        // RESPOSTA PARA O FRONTEND (COM O LINK)
-        // ==========================================
         ApiResponse.success(res, {
             numero_pedido: resultado.pedido.numero_pedido,
             checkout_url: checkoutUrl 
@@ -554,65 +365,38 @@ ${resultado.usuarioNovo ? '⚠️ NOVO CLIENTE CADASTRADO' : '✓ Cliente existe
 
     } catch (error) {
         console.error('[CHECKOUT] ❌ Erro:', error.message);
-        
-        if (error.message.includes('Email já cadastrado')) {
-            return ApiResponse.error(res, 'Este email já está cadastrado com outro CPF', 400);
-        }
-        if (error.message.includes('CPF já cadastrado')) {
-            return ApiResponse.error(res, 'Este CPF já está cadastrado com outro email', 400);
-        }
-        if (error.message.includes('Estoque insuficiente')) {
-            return ApiResponse.error(res, 'Produto temporariamente indisponível', 400);
-        }
+        if (error.message.includes('Email já cadastrado')) return ApiResponse.error(res, 'Este email já está cadastrado com outro CPF', 400);
+        if (error.message.includes('CPF já cadastrado')) return ApiResponse.error(res, 'Este CPF já está cadastrado com outro email', 400);
+        if (error.message.includes('Estoque insuficiente')) return ApiResponse.error(res, 'Produto temporariamente indisponível', 400);
         
         ApiResponse.error(res, 'Erro ao processar pedido. Tente novamente.', 500);
     }
 });
 
-// ==================== PEDIDOS ====================
+// ==================== PEDIDOS E AUTENTICAÇÃO ====================
 
 app.get('/api/pedidos/:numero', async (req, res) => {
     try {
         const { numero } = req.params;
         const repo = new Repository(db);
+        const pedido = db.prepare(`SELECT p.*, u.nome as cliente_nome, u.email as cliente_email FROM pedidos p JOIN usuarios u ON p.usuario_id = u.id WHERE p.numero_pedido = ?`).get(numero);
         
-        const pedido = db.prepare(`
-            SELECT p.*, u.nome as cliente_nome, u.email as cliente_email
-            FROM pedidos p
-            JOIN usuarios u ON p.usuario_id = u.id
-            WHERE p.numero_pedido = ?
-        `).get(numero);
-        
-        if (!pedido) {
-            return ApiResponse.error(res, 'Pedido não encontrado', 404);
-        }
+        if (!pedido) return ApiResponse.error(res, 'Pedido não encontrado', 404);
         
         const itens = repo.getOrderItems(pedido.id);
-        const historico = db.prepare(`
-            SELECT * FROM pedido_historico WHERE pedido_id = ? ORDER BY criado_em DESC
-        `).all(pedido.id);
+        const historico = db.prepare(`SELECT * FROM pedido_historico WHERE pedido_id = ? ORDER BY criado_em DESC`).all(pedido.id);
         
-        ApiResponse.success(res, {
-            ...pedido,
-            itens,
-            historico
-        });
-        
+        ApiResponse.success(res, { ...pedido, itens, historico });
     } catch (error) {
         console.error('[PEDIDO] Erro:', error);
         ApiResponse.error(res, 'Erro ao consultar pedido', 500);
     }
 });
 
-// ==================== AUTENTICAÇÃO ====================
-
 app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
         const { email, senha } = req.body;
-        
-        if (!email || !senha) {
-            return ApiResponse.error(res, 'Email e senha são obrigatórios', 400);
-        }
+        if (!email || !senha) return ApiResponse.error(res, 'Email e senha são obrigatórios', 400);
         
         const repo = new Repository(db);
         const usuario = repo.getUserByEmail(email);
@@ -633,54 +417,32 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         }
         
         repo.updateUserLogin(usuario.id);
-        
         repo.logAudit({
-            tabela: 'usuarios',
-            registro_id: usuario.id,
-            acao: 'LOGIN',
-            usuario_id: usuario.id,
-            ip_address: req.ip,
-            user_agent: req.headers['user-agent'],
-            endpoint: '/api/auth/login',
-            metodo_http: 'POST'
+            tabela: 'usuarios', registro_id: usuario.id, acao: 'LOGIN', usuario_id: usuario.id,
+            ip_address: req.ip, user_agent: req.headers['user-agent'], endpoint: '/api/auth/login', metodo_http: 'POST'
         });
         
-        ApiResponse.success(res, {
-            id: usuario.uuid,
-            nome: usuario.nome,
-            email: usuario.email,
-            ultimo_login: new Date().toISOString()
-        }, 'Login realizado com sucesso');
-        
+        ApiResponse.success(res, { id: usuario.uuid, nome: usuario.nome, email: usuario.email, ultimo_login: new Date().toISOString() }, 'Login realizado com sucesso');
     } catch (error) {
         console.error('[LOGIN] Erro:', error);
         ApiResponse.error(res, 'Erro ao realizar login', 500);
     }
 });
 
-// ==========================================
-// WEBHOOK INFINITEPAY (Recebe a confirmação)
-// ==========================================
+// ==================== WEBHOOK E ROTAS LEGACY ====================
+
 app.post('/api/webhook/infinitepay', async (req, res) => {
     try {
-        const { order_nsu, capture_method, transaction_nsu, amount } = req.body;
-        
+        const { order_nsu, capture_method, transaction_nsu } = req.body;
         console.log(`\n[WEBHOOK] Pagamento recebido para o pedido: ${order_nsu}`);
 
-        if (!order_nsu) {
-            return res.status(400).send('Bad Request: Falta order_nsu');
-        }
+        if (!order_nsu) return res.status(400).send('Bad Request: Falta order_nsu');
 
         const repo = new Repository(db);
         const pedido = db.prepare('SELECT id FROM pedidos WHERE numero_pedido = ?').get(order_nsu);
         
         if (pedido) {
-            repo.updateOrderStatus(
-                pedido.id,
-                'pago',
-                `Pago via InfinitePay (${capture_method}). Transação: ${transaction_nsu}.`,
-                null
-            );
+            repo.updateOrderStatus(pedido.id, 'pago', `Pago via InfinitePay (${capture_method}). Transação: ${transaction_nsu}.`, null);
             console.log(`[WEBHOOK] ✅ Pedido ${order_nsu} atualizado para PAGO na base de dados!`);
         } else {
             console.log(`[WEBHOOK] ⚠️ Pedido ${order_nsu} não encontrado.`);
@@ -692,8 +454,6 @@ app.post('/api/webhook/infinitepay', async (req, res) => {
         res.status(400).send('Erro');
     }
 });
-
-// ==================== ROTAS LEGACY (compatibilidade) ====================
 
 app.post('/register', validateCheckout, async (req, res) => {
     req.url = '/api/checkout';
@@ -711,10 +471,9 @@ app.get('/pagamento', (req, res) => {
 });
 
 // ============================================================
-// TRATAMENTO DE ERROS
+// TRATAMENTO DE ERROS E INICIALIZAÇÃO
 // ============================================================
 
-// 404 - Rota não encontrada
 app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
         ApiResponse.error(res, 'Rota não encontrada', 404);
@@ -723,7 +482,6 @@ app.use((req, res) => {
     }
 });
 
-// Erro interno
 app.use((err, req, res, next) => {
     console.error('[ERROR]', err);
     if (req.path.startsWith('/api/')) {
@@ -732,10 +490,6 @@ app.use((err, req, res, next) => {
         res.status(500).send('Erro interno do servidor');
     }
 });
-
-// ============================================================
-// INICIALIZAÇÃO
-// ============================================================
 
 app.listen(PORT, () => {
     const DB_PATH = process.env.DB_PATH || './database.sqlite';
@@ -750,16 +504,7 @@ app.listen(PORT, () => {
     `);
 });
 
-process.on('SIGTERM', () => {
-    console.log('[SERVER] Encerrando servidor...');
-    db.close();
-    process.exit(0);
-});
-
-process.on('SIGINT', () => {
-    console.log('[SERVER] Encerrando servidor...');
-    db.close();
-    process.exit(0);
-});
+process.on('SIGTERM', () => { console.log('[SERVER] Encerrando servidor...'); db.close(); process.exit(0); });
+process.on('SIGINT', () => { console.log('[SERVER] Encerrando servidor...'); db.close(); process.exit(0); });
 
 module.exports = app;
