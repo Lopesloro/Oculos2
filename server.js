@@ -227,6 +227,10 @@ app.post('/api/checkout', validateCheckout, async (req, res) => {
             
             const produto = repo.getProductBySku('BLUESHIELD-PRO-001');
             if (!produto) throw new Error('Produto não encontrado');
+            
+            // 👉 FORÇANDO O NOVO PREÇO AQUI (Isso resolve tudo de uma vez)
+            produto.preco_unitario = 269.00;
+            
             if (produto.estoque < quantidade) throw new Error('Estoque insuficiente');
             
             const precoUnitario = produto.preco_unitario;
