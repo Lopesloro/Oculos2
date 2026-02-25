@@ -75,7 +75,7 @@ function salvarProduto() {
         'PROD-001',                    // SKU único
         'BlueShield Pro',              // Nome
         'Óculos anti luz azul',        // Descrição
-        299.00,                        // Preço
+        269.00,                        // Preço
         100,                           // Estoque
         JSON.stringify({               // Especificações em JSON
             peso: '22g',

@@ -409,7 +409,7 @@ function initializeDatabase() {
                 'BLUESHIELD-PRO-001',
                 'BlueShield Pro',
                 'Óculos bloqueador de luz azul para profissionais de alta performance',
-                299.00,
+                269.00,
                 1000,
                 JSON.stringify({
                     peso: '22g',
@@ -426,7 +426,7 @@ function initializeDatabase() {
         
         // Inserir configurações padrão
         const configs = [
-            ['preco_default', '299.00', 'Preço padrão do produto'],
+            ['preco_default', '269.00', 'Preço padrão do produto'],
             ['frete_gratis', 'true', 'Frete grátis ativado'],
             ['estoque_minimo', '10', 'Alerta de estoque baixo'],
             ['versao_db', '1.0.0', 'Versão do schema do banco']

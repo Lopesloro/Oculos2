@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // CHECKOUT PAGE
 // ============================================================
 
-const UNIT_PRICE = 299.00;
+const UNIT_PRICE =269.00;
 let qty = 1;
 
 const qtyEl = document.getElementById('qty');
