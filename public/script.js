@@ -126,11 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
 // ============================================================
 // CHECKOUT PAGE
 // ============================================================
 
-const UNIT_PRICE =269.00;
+const UNIT_PRICE = 269.00;
 let qty = 1;
 
 const qtyEl = document.getElementById('qty');
@@ -301,6 +302,25 @@ if (purchaseForm) {
             if (data.success) {
                 showToast(`A redirecionar para o ambiente seguro de pagamento...`, 'success');
                 
+                // --- INÍCIO: NOVO CÓDIGO DO GOOGLE ADS QUE ESTAMOS ADICIONANDO ---
+                try {
+                    const valorTotal = qty * UNIT_PRICE;
+                    const idTransacao = (data.data && data.data.id) ? data.data.id : new Date().getTime().toString();
+                    
+                    if (typeof gtag === 'function') {
+                        gtag('event', 'conversion', {
+                            'send_to': 'AW-17972527330/rVBfCNrZ3P0bEOKB_PlC',
+                            'value': valorTotal,
+                            'currency': 'BRL',
+                            'transaction_id': idTransacao
+                        });
+                        console.log("Conversão do Google Ads registrada com sucesso!", valorTotal);
+                    }
+                } catch (e) {
+                    console.error("Erro ao registrar conversão no Google Ads:", e);
+                }
+                // --- FIM: NOVO CÓDIGO DO GOOGLE ADS ---
+
                 // Limpa o formulário
                 purchaseForm.reset();
                 qty = 1;
@@ -317,7 +337,7 @@ if (purchaseForm) {
             } else {
                 showToast(data.message || 'Erro ao processar pedido.', 'error');
             }
-                
+            
             // Se houver erros de validação detalhados
             if (data.errors && data.errors.length > 0) {
                 console.error('Erros de validação:', data.errors);
